@@ -156,10 +156,18 @@ class Game {
             farthest = next;
             next = { x: farthest.x + vector.x, y: farthest.y + vector.y };
           } while (this.withinBounds(next) && this.cellAvailable(next));
+
+          // Mova o bloco se a posição mais distante for diferente da original
+          if (farthest.x !== x || farthest.y !== y) {
+            this.gameBoard[farthest.y][farthest.x] = tileValue;
+            this.gameBoard[y][x] = null;
+            moved = true;
+          }
+
           let nextValue = this.cellContent(next);
           if (nextValue && tileValue === nextValue) {
             this.gameBoard[next.y][next.x] = tileValue * 2;
-            this.gameBoard[y][x] = null;
+            this.gameBoard[farthest.y][farthest.x] = null; // Use a posição mais distante aqui
             this.score += tileValue * 2;
             moved = true;
           }
