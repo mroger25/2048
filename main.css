@@ -29,6 +29,21 @@
   justify-content: center;
 }
 
+.tile-new {
+  animation: appear 200ms ease 100ms;
+}
+
+@keyframes appear {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  100% {
+    opacity: 100;
+    transform: scale(1);
+  }
+}
+
 #game-over {
   font-size: 36px;
   font-weight: bold;

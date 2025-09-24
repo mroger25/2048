@@ -11,66 +11,68 @@ class Game {
     this.addEventListeners();
   }
 
-  initializeGame = () => {
+  initializeGame() {
     this.gameOverDisplay.style.visibility = "hidden";
     this.score = 0;
     this.gameBoard = Array(4)
       .fill()
-      .map(() => Array(4).fill(0));
+      .map(() => Array(4).fill(null));
+    console.log(this.gameBoard);
     this.renderBoard();
     this.addNewTile();
     this.addNewTile();
-  };
+  }
 
-  addNewTile = () => {
+  addNewTile() {
     const emptyTiles = this.getEmptyTiles();
 
     if (emptyTiles.length > 0) {
       const { x, y } =
         emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
-      this.gameBoard[x][y] = Math.random() < 0.9 ? 2 : 4;
+      this.gameBoard[y][x] = Math.random() < 0.9 ? 2 : 4;
       this.updateTile(x, y);
     }
-  };
+  }
 
-  getEmptyTiles = () => {
+  getEmptyTiles() {
     const emptyTiles = [];
-    for (let i = 0; i < 4; i++) {
-      for (let j = 0; j < 4; j++) {
-        if (this.gameBoard[i][j] === 0) {
-          emptyTiles.push({ x: i, y: j });
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 4; x++) {
+        if (!this.gameBoard[y][x]) {
+          emptyTiles.push({ x, y });
         }
       }
     }
 
     return emptyTiles;
-  };
+  }
 
-  renderBoard = () => {
+  renderBoard() {
     this.board.innerHTML = "";
 
-    for (let i = 0; i < 4; i++) {
-      for (let j = 0; j < 4; j++) {
-        const tileValue = this.gameBoard[i][j];
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 4; x++) {
+        const tileValue = this.gameBoard[y][x];
+        const value = tileValue === null ? "" : tileValue;
         const tile = document.createElement("div");
-        tile.className = "tile";
-        tile.textContent = tileValue > 0 ? tileValue : "";
+        tile.classList.add("tile", `tile-${value}`);
+        tile.textContent = value;
         tile.style.backgroundColor = this.getTileColor(tileValue);
         this.board.appendChild(tile);
       }
     }
 
     this.scoreDisplay.textContent = "Score: " + this.score;
-  };
+  }
 
-  updateTile = (x, y) => {
-    const tile = this.board.children[x * 4 + y];
-    const tileValue = this.gameBoard[x][y];
-    tile.textContent = tileValue > 0 ? tileValue : "";
+  updateTile(x, y) {
+    const tile = this.board.children[y * 4 + x];
+    const tileValue = this.gameBoard[y][x];
+    tile.textContent = tileValue === null ? "" : tileValue;
     tile.style.backgroundColor = this.getTileColor(tileValue);
-  };
+  }
 
-  getTileColor = (value) => {
+  getTileColor(value) {
     switch (value) {
       case 2:
         return "#eee4da";
@@ -97,147 +99,122 @@ class Game {
       default:
         return "#ccc0b3";
     }
-  };
+  }
 
-  isGameOver = () => {
-    for (let i = 0; i < 4; i++) {
-      for (let j = 0; j < 4; j++) {
-        if (this.gameBoard[i][j] === 0) {
-          return false;
-        }
-        if (
-          (j < 3 && this.gameBoard[i][j] === this.gameBoard[i][j + 1]) ||
-          (i < 3 && this.gameBoard[i][j] === this.gameBoard[i + 1][j])
-        ) {
-          return false;
-        }
+  movesAvailable() {
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 4; x++) {
+        if (!this.gameBoard[y][x]) return true;
+
+        const tile = this.gameBoard[y][x];
+        if (x < 3 && tile === this.gameBoard[y][x + 1]) return true;
+        if (y < 3 && tile === this.gameBoard[y + 1][x]) return true;
       }
     }
-    return true;
-  };
+    return false;
+  }
 
-  moveTiles = (direction) => {
-    let moved = false;
+  handlerInputs(event) {
+    const direction = event.key;
+    console.log(`handlerInputs -> ${direction}`);
+    const directions = {
+      ArrowLeft: 0,
+      ArrowUp: 1,
+      ArrowRight: 2,
+      ArrowDown: 3,
+    };
 
-    switch (direction) {
-      case "up":
-        moved = this.mergeTiles(moved, 0, -1);
-        break;
-
-      case "down":
-        moved = this.mergeTiles(moved, 0, 1);
-        break;
-
-      case "left":
-        moved = this.mergeTiles(moved, -1, 0);
-        break;
-
-      case "right":
-        moved = this.mergeTiles(moved, 1, 0);
-        break;
-
-      default:
-        break;
+    if (directions[direction] >= 0) {
+      console.log(`moving -> ${direction}`);
+      this.move(directions[direction]);
     }
+  }
+
+  move(direction) {
+    const moved = this.mergeTiles.bind(this)(false, direction);
 
     if (moved) {
       this.addNewTile();
       this.renderBoard();
-      if (this.isGameOver()) {
+      if (!this.movesAvailable()) {
         this.gameOverDisplay.style.visibility = "visible";
       }
     }
-  };
+  }
 
-  mergeTiles = (moved, stepX, stepY) => {
-    for (
-      let i = stepY === 0 ? 0 : stepY > 0 ? 2 : 1;
-      stepY === 0 ? i < 4 : stepY > 0 ? i >= 0 : i < 4;
-      i += stepY === 0 ? 1 : stepY > 0 ? -1 : 1
-    ) {
-      for (
-        let j = stepX === 0 ? 0 : stepX > 0 ? 2 : 1;
-        stepX === 0 ? j < 4 : stepX > 0 ? j >= 0 : j < 4;
-        j += stepX === 0 ? 1 : stepX > 0 ? -1 : 1
-      ) {
-        if (this.gameBoard[i][j] !== 0) {
-          let rowOrCol = stepY === 0 ? j : i;
-
-          while (
-            (stepX > 0 || stepY > 0 ? rowOrCol < 3 : rowOrCol > 0) &&
-            this.gameBoard[stepY === 0 ? i : rowOrCol + stepY][
-              stepX === 0 ? j : rowOrCol + stepX
-            ] === 0
-          ) {
-            this.gameBoard[stepY === 0 ? i : rowOrCol + stepY][
-              stepX === 0 ? j : rowOrCol + stepX
-            ] =
-              this.gameBoard[stepY === 0 ? i : rowOrCol][
-                stepX === 0 ? j : rowOrCol
-              ];
-            this.gameBoard[stepY === 0 ? i : rowOrCol][
-              stepX === 0 ? j : rowOrCol
-            ] = 0;
-            rowOrCol += stepX > 0 || stepY > 0 ? 1 : -1;
-            moved = true;
-          }
-
-          if (
-            (stepX > 0 || stepY > 0 ? rowOrCol < 3 : rowOrCol > 0) &&
-            this.gameBoard[stepY === 0 ? i : rowOrCol + stepY][
-              stepX === 0 ? j : rowOrCol + stepX
-            ] ===
-              this.gameBoard[stepY === 0 ? i : rowOrCol][
-                stepX === 0 ? j : rowOrCol
-              ]
-          ) {
-            this.gameBoard[stepY === 0 ? i : rowOrCol + stepY][
-              stepX === 0 ? j : rowOrCol + stepX
-            ] *= 2;
-            this.score +=
-              this.gameBoard[stepY === 0 ? i : rowOrCol + stepY][
-                stepX === 0 ? j : rowOrCol + stepX
-              ];
-            this.gameBoard[stepY === 0 ? i : rowOrCol][
-              stepX === 0 ? j : rowOrCol
-            ] = 0;
+  mergeTiles(moved, direction) {
+    const vector = this.getVector.bind(this)(direction);
+    const traversals = this.buildTraversals.bind(this)(vector);
+    moved = false;
+    traversals.y.forEach((y) => {
+      traversals.x.forEach((x) => {
+        const tileValue = this.cellContent({ x, y });
+        if (tileValue) {
+          let farthest;
+          let next = { x, y };
+          do {
+            farthest = next;
+            next = { x: farthest.x + vector.x, y: farthest.y + vector.y };
+          } while (this.withinBounds(next) && this.cellAvailable(next));
+          let nextValue = this.cellContent(next);
+          if (nextValue && tileValue === nextValue) {
+            this.gameBoard[next.y][next.x] = tileValue * 2;
+            this.gameBoard[y][x] = null;
+            this.score += tileValue * 2;
             moved = true;
           }
         }
-      }
-    }
+      });
+    });
+
     return moved;
-  };
+  }
+
+  cellContent({ x, y }) {
+    return this.withinBounds({ x, y }) ? this.gameBoard[y][x] : null;
+  }
+
+  cellOccupied(e) {
+    return !!this.cellContent(e);
+  }
+
+  cellAvailable(e) {
+    return !this.cellOccupied(e);
+  }
+
+  withinBounds({ x, y }) {
+    return x >= 0 && x < 4 && y >= 0 && y < 4;
+  }
+
+  buildTraversals(vector) {
+    const traversals = { x: [], y: [] };
+    for (let i = 0; i < 4; i++) {
+      traversals.x.push(i);
+      traversals.y.push(i);
+    }
+    if (vector.x === 1) traversals.x = traversals.x.reverse();
+    if (vector.y === 1) traversals.y = traversals.y.reverse();
+    return traversals;
+  }
+
+  getVector(direction) {
+    const vectors = {
+      0: { x: -1, y: 0 },
+      1: { x: 0, y: -1 },
+      2: { x: 1, y: 0 },
+      3: { x: 0, y: 1 },
+    };
+
+    return vectors[direction];
+  }
 
   addEventListeners() {
-    this.newGameBtn.addEventListener("click", this.initializeGame);
+    this.newGameBtn.addEventListener("click", this.initializeGame.bind(this));
 
-    document.addEventListener("keydown", (event) => {
-      switch (event.key) {
-        case "ArrowUp":
-          event.preventDefault();
-          this.moveTiles("up");
-          break;
-        case "ArrowDown":
-          event.preventDefault();
-          this.moveTiles("down");
-          break;
-        case "ArrowLeft":
-          event.preventDefault();
-          this.moveTiles("left");
-          break;
-        case "ArrowRight":
-          event.preventDefault();
-          this.moveTiles("right");
-          break;
-
-        default:
-          break;
-      }
-    });
+    document.addEventListener("keydown", this.handlerInputs.bind(this));
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", function () {
   const game = new Game();
 });
