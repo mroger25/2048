@@ -1,12 +1,11 @@
 class Game {
   constructor() {
     this.score = 0;
-    this.gameBoard = []; // Guarda os valores (ex: 2, 4, 8)
+    this.gameBoard = [];
     this.board = document.getElementById("board");
     this.scoreDisplay = document.getElementById("score");
     this.gameOverDisplay = document.getElementById("game-over");
     this.newGameBtn = document.getElementById("new-game");
-    this.isMoving = false; // Controla se uma animação está em andamento
 
     this.initializeGame();
     this.addEventListeners();
@@ -18,59 +17,21 @@ class Game {
     this.gameBoard = Array(4)
       .fill()
       .map(() => Array(4).fill(null));
-
-    this.setupBoardUI();
+    console.log(this.gameBoard);
+    this.renderBoard();
     this.addNewTile();
     this.addNewTile();
-    this.updateScore();
-  }
-
-  // Prepara a interface do tabuleiro (células de fundo e tiles)
-  setupBoardUI() {
-    this.board.innerHTML = "";
-    // Adiciona as células de fundo
-    for (let i = 0; i < 16; i++) {
-      const cell = document.createElement("div");
-      cell.classList.add("grid-cell");
-      this.board.appendChild(cell);
-    }
   }
 
   addNewTile() {
     const emptyTiles = this.getEmptyTiles();
+
     if (emptyTiles.length > 0) {
       const { x, y } =
         emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
-      const value = Math.random() < 0.9 ? 2 : 4;
-      this.gameBoard[y][x] = {
-        value: value,
-        element: this.createTileElement(x, y, value, true),
-      };
+      this.gameBoard[y][x] = Math.random() < 0.9 ? 2 : 4;
+      this.updateTile(x, y);
     }
-  }
-
-  createTileElement(x, y, value, isNew = false) {
-    const tile = document.createElement("div");
-    tile.classList.add("tile");
-    if (isNew) {
-      tile.classList.add("tile-new");
-      tile.addEventListener(
-        "animationend",
-        () => tile.classList.remove("tile-new"),
-        { once: true }
-      );
-    }
-    tile.textContent = value;
-    tile.style.backgroundColor = this.getTileColor(value);
-    this.updateTilePosition(tile, x, y);
-    this.board.appendChild(tile);
-    return tile;
-  }
-
-  updateTilePosition(tile, x, y) {
-    const newX = x * 100;
-    const newY = y * 100;
-    tile.style.transform = `translate(${newX}px, ${newY}px)`;
   }
 
   getEmptyTiles() {
@@ -82,154 +43,35 @@ class Game {
         }
       }
     }
+
     return emptyTiles;
   }
 
-  updateScore() {
+  renderBoard() {
+    this.board.innerHTML = "";
+
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 4; x++) {
+        const tileValue = this.gameBoard[y][x];
+        const value = tileValue === null ? "" : tileValue;
+        const tile = document.createElement("div");
+        tile.classList.add("tile", `tile-${value}`);
+        tile.textContent = value;
+        tile.style.backgroundColor = this.getTileColor(tileValue);
+        this.board.appendChild(tile);
+      }
+    }
+
     this.scoreDisplay.textContent = "Score: " + this.score;
   }
 
-  handlerInputs(event) {
-    if (this.isMoving) return; // Impede novos movimentos durante a animação
-
-    const direction = event.key;
-    const directions = {
-      ArrowLeft: 0,
-      ArrowUp: 1,
-      ArrowRight: 2,
-      ArrowDown: 3,
-    };
-
-    if (Object.keys(directions).includes(direction)) {
-      event.preventDefault();
-      this.move(directions[direction]);
-    }
+  updateTile(x, y) {
+    const tile = this.board.children[y * 4 + x];
+    const tileValue = this.gameBoard[y][x];
+    tile.textContent = tileValue === null ? "" : tileValue;
+    tile.style.backgroundColor = this.getTileColor(tileValue);
   }
 
-  async move(direction) {
-    this.isMoving = true;
-    const vector = this.getVector(direction);
-    const traversals = this.buildTraversals(vector);
-    let moved = false;
-    let promises = []; // Para esperar as animações terminarem
-
-    traversals.y.forEach((y) => {
-      traversals.x.forEach((x) => {
-        const currentCell = { x, y };
-        const tile = this.gameBoard[y][x];
-
-        if (tile) {
-          // Encontra a posição mais distante que a peça pode ir
-          let previousPosition;
-          let currentPosition = currentCell;
-
-          do {
-            previousPosition = currentPosition;
-            currentPosition = {
-              x: previousPosition.x + vector.x,
-              y: previousPosition.y + vector.y,
-            };
-          } while (
-            this.withinBounds(currentPosition) &&
-            !this.gameBoard[currentPosition.y][currentPosition.x]
-          );
-
-          const newPosition = previousPosition; // A última posição válida
-
-          // Verifica se uma fusão é possível na próxima posição
-          const nextPosition = {
-            x: newPosition.x + vector.x,
-            y: newPosition.y + vector.y,
-          };
-          const tileToMergeWith = this.withinBounds(nextPosition)
-            ? this.gameBoard[nextPosition.y][nextPosition.x]
-            : null;
-
-          if (
-            tileToMergeWith &&
-            tileToMergeWith.value === tile.value &&
-            !tileToMergeWith.merged
-          ) {
-            // Fusão
-            const mergedTile = tileToMergeWith;
-            mergedTile.value *= 2;
-            mergedTile.merged = true; // Marca como já fundido nesta jogada
-
-            this.gameBoard[y][x] = null; // Esvazia a posição original
-            this.score += mergedTile.value;
-
-            // Animação
-            promises.push(
-              this.animateMove(tile, nextPosition, true, mergedTile)
-            );
-            moved = true;
-          } else if (newPosition.x !== x || newPosition.y !== y) {
-            // Movimento
-            this.gameBoard[newPosition.y][newPosition.x] = tile;
-            this.gameBoard[y][x] = null;
-
-            // Animação
-            promises.push(this.animateMove(tile, newPosition));
-            moved = true;
-          }
-        }
-      });
-    });
-
-    await Promise.all(promises); // Espera todas as animações
-
-    // Limpa a marcação de 'merged'
-    for (let y = 0; y < 4; y++) {
-      for (let x = 0; x < 4; x++) {
-        if (this.gameBoard[y][x]) {
-          this.gameBoard[y][x].merged = false;
-        }
-      }
-    }
-
-    if (moved) {
-      this.updateScore();
-      this.addNewTile();
-      if (!this.movesAvailable()) {
-        this.gameOverDisplay.style.visibility = "visible";
-      }
-    }
-
-    this.isMoving = false;
-  }
-
-  animateMove(tile, position, isMerging = false, targetTile = null) {
-    return new Promise((resolve) => {
-      this.updateTilePosition(tile.element, position.x, position.y);
-
-      // Ouve o final da transição
-      tile.element.addEventListener(
-        "transitionend",
-        () => {
-          if (isMerging) {
-            // Atualiza o valor do tile que recebeu a fusão
-            targetTile.element.textContent = targetTile.value;
-            targetTile.element.style.backgroundColor = this.getTileColor(
-              targetTile.value
-            );
-            targetTile.element.classList.add("tile-merged");
-            targetTile.element.addEventListener(
-              "animationend",
-              () => targetTile.element.classList.remove("tile-merged"),
-              { once: true }
-            );
-
-            // Remove o tile que se moveu
-            tile.element.remove();
-          }
-          resolve();
-        },
-        { once: true }
-      );
-    });
-  }
-
-  // --- Funções Auxiliares (sem alterações) ---
   getTileColor(value) {
     switch (value) {
       case 2:
@@ -263,22 +105,89 @@ class Game {
     for (let y = 0; y < 4; y++) {
       for (let x = 0; x < 4; x++) {
         if (!this.gameBoard[y][x]) return true;
-        const tile = this.gameBoard[y][x].value;
-        if (
-          x < 3 &&
-          this.gameBoard[y][x + 1] &&
-          tile === this.gameBoard[y][x + 1].value
-        )
-          return true;
-        if (
-          y < 3 &&
-          this.gameBoard[y + 1][x] &&
-          tile === this.gameBoard[y + 1][x].value
-        )
-          return true;
+
+        const tile = this.gameBoard[y][x];
+        if (x < 3 && tile === this.gameBoard[y][x + 1]) return true;
+        if (y < 3 && tile === this.gameBoard[y + 1][x]) return true;
       }
     }
     return false;
+  }
+
+  handlerInputs(event) {
+    const direction = event.key;
+    console.log(`handlerInputs -> ${direction}`);
+    const directions = {
+      ArrowLeft: 0,
+      ArrowUp: 1,
+      ArrowRight: 2,
+      ArrowDown: 3,
+    };
+
+    if (directions[direction] >= 0) {
+      console.log(`moving -> ${direction}`);
+      this.move(directions[direction]);
+    }
+  }
+
+  move(direction) {
+    const moved = this.mergeTiles.bind(this)(false, direction);
+
+    if (moved) {
+      this.addNewTile();
+      this.renderBoard();
+      if (!this.movesAvailable()) {
+        this.gameOverDisplay.style.visibility = "visible";
+      }
+    }
+  }
+
+  mergeTiles(moved, direction) {
+    const vector = this.getVector.bind(this)(direction);
+    const traversals = this.buildTraversals.bind(this)(vector);
+    moved = false;
+    traversals.y.forEach((y) => {
+      traversals.x.forEach((x) => {
+        const tileValue = this.cellContent({ x, y });
+        if (tileValue) {
+          let farthest;
+          let next = { x, y };
+          do {
+            farthest = next;
+            next = { x: farthest.x + vector.x, y: farthest.y + vector.y };
+          } while (this.withinBounds(next) && this.cellAvailable(next));
+
+          // Mova o bloco se a posição mais distante for diferente da original
+          if (farthest.x !== x || farthest.y !== y) {
+            this.gameBoard[farthest.y][farthest.x] = tileValue;
+            this.gameBoard[y][x] = null;
+            moved = true;
+          }
+
+          let nextValue = this.cellContent(next);
+          if (nextValue && tileValue === nextValue) {
+            this.gameBoard[next.y][next.x] = tileValue * 2;
+            this.gameBoard[farthest.y][farthest.x] = null; // Use a posição mais distante aqui
+            this.score += tileValue * 2;
+            moved = true;
+          }
+        }
+      });
+    });
+
+    return moved;
+  }
+
+  cellContent({ x, y }) {
+    return this.withinBounds({ x, y }) ? this.gameBoard[y][x] : null;
+  }
+
+  cellOccupied(e) {
+    return !!this.cellContent(e);
+  }
+
+  cellAvailable(e) {
+    return !this.cellOccupied(e);
   }
 
   withinBounds({ x, y }) {
@@ -303,11 +212,13 @@ class Game {
       2: { x: 1, y: 0 },
       3: { x: 0, y: 1 },
     };
+
     return vectors[direction];
   }
 
   addEventListeners() {
     this.newGameBtn.addEventListener("click", this.initializeGame.bind(this));
+
     document.addEventListener("keydown", this.handlerInputs.bind(this));
   }
 }
